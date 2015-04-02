@@ -82,7 +82,7 @@ func RunFunctions(msg SlackMSG){
                     text = "Meow"
                 } else {
                     if strings.Contains(mycmd[1], "now") {
-                        text = "Fucked if I know, you read https://hiveradio.net/icebreath/icecast/stats/"
+                        text = GetNowPlaying()
                     }
                 }
             }
@@ -101,6 +101,34 @@ func RunFunctions(msg SlackMSG){
         }
     }
 
+}
+func GetNowPlaying()(string){
+    req := fmt.Sprintf("https://hiveradio.net/icebreath/icecast/stats/high.quality.mp3")
+    resp, err := http.Get(req)
+    if err != nil {
+        log.Fatal("API ERROR: ", err)
+    }
+    defer resp.Body.Close()
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        log.Fatal("API ERROR: ", err)
+    }
+    fmt.Println(string(body))
+    var ibs IceBreath
+    err = json.Unmarshal(body, &ibs)
+    if err != nil {
+        fmt.Print(err)
+    }
+    fmt.Println(ibs)
+    fmt.Printf("+-------------------------------------------\r\n")
+    fmt.Printf("|JSON Status: %v\r\n", ibs.Status)
+    fmt.Printf("|JSON Server_Version: %v\r\n", ibs.Result.Server_version)
+    fmt.Printf("|JSON Server_Admin: %v\r\n", ibs.Result.Server_admin)
+    fmt.Printf("|JSON Stream Status: %v\r\n", ibs.Result.Server_streams[0].Stream_online)
+    fmt.Printf("|JSON Stream Title: %v\r\n", ibs.Result.Server_streams[0].Stream_title)
+    fmt.Printf("|JSON Stream Now Playing: %v\r\n", ibs.Result.Server_streams[0].Stream_nowplaying.Text)
+    fmt.Printf("+-------------------------------------------")
+    return ibs.Result.Server_streams[0].Stream_nowplaying.Text
 }
 
 func ProcessSlackMSG (ws *websocket.Conn)(SlackMSG, error){
@@ -140,6 +168,42 @@ func GetWS() (string, error){
         fmt.Print(err)
     }
     return mybot.URL, nil
+}
+
+type IceBreath struct  {
+    Status string `json:"status"`
+    Result IceBreathStats `json:"result"`
+    Timestamp int `json:"timestamp"`
+
+}
+type IceBreathStats struct {
+    Server_version string `json:"server_version"`
+    Server_admin string `json:"server_admin"`
+    Server_location string `json:"server_location"`
+    Server_listeners_total int `json:"server_listeners_total"`
+    Server_listeners_unique int`json:"server_listeners_unique"`
+    Server_listeners_peak int `json:"server_listeners_peak"`
+    Server_listeners_max int `json:"server_listeners_max"`
+    Server_streams []IceBreathSreams `json:"server_streams"`
+
+
+}
+type IceBreathSreams struct {
+    Stream_online       int     `json:"stream_online"`
+    Stream_title        string  `json:"stream_title"`
+    Stream_description  string  `json:"stream_description"`
+    Stream_genre        string  `json:"stream_genre"`
+    Stream_listeners    int     `json:"stream_listeners"`
+    Stream_listeners_unique int `json:"stream_listeners_unique"`
+    Stream_listeners_peak   int `json:"stream_listeners_peak"`
+    Stream_listeners_max    int `json:"stream_listeners_max"`
+    Stream_nowplaying IceBreathNowPlaying `json:"stream_nowplaying"`
+}
+type IceBreathNowPlaying struct {
+    Song    string  `json:"song"`
+    Artist  string  `json:"artist"`
+    Text    string  `json:"text"`
+    DJ      string  `json:"dj"`
 }
 
 type MyConfig struct {
